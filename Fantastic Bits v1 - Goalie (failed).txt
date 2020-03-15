@@ -1,0 +1,259 @@
+// File: GoalieStrat.cpp
+// Authour: Joshua Beresford
+// Notes:The below code works well for Wood 2, 
+//       fails above that due to bludgers
+
+
+
+#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <math.h>
+
+using namespace std;
+
+/**
+ * Grab Snaffles and try to throw them through the opponent's goal!
+ * Move towards a Snaffle and use your team id to determine where you need to throw it.
+ **/
+ 
+ class Wizard {
+         int x,y,vx,vy,snaffle;
+         
+         public:
+            Wizard(int x, int y, int vx, int vy, int snaffle) {
+                this->x = x;
+                this->y = y;
+                this->vx = vx;
+                this->vy = vy;
+                this->snaffle=snaffle;
+            }
+            
+            int getX() { return x; }
+            int getY() { return y; }
+            int getVX() { return vx; }
+            int getVY() { return vy; }
+            int hasSnaffle() { return snaffle; }
+            
+        };
+        
+        // Keeps track of enemy wizards
+        class Enemy {
+         int x,y,vx,vy,snaffle;
+         
+         public:
+            Enemy(int x, int y, int vx, int vy, int snaffle) {
+                this->x = x;
+                this->y = y;
+                this->vx = vx;
+                this->vy = vy;
+                this->snaffle=snaffle;
+            }
+            
+            int getX() { return x; }
+            int getY() { return y; }
+            int getVX() { return vx; }
+            int getVY() { return vy; }
+            int hasSnaffle() { return snaffle; }
+        };
+        
+        // Keeps track of Snaffles (Snitch + Quaffle = Snaffle)
+        class Snaffle {
+         int x,y,vx,vy,caught;
+         
+         public:
+            Snaffle(int x, int y, int vx, int vy, int caught) {
+                this->x = x;
+                this->y = y;
+                this->vx = vx;
+                this->vy = vy;
+                this->caught = caught;
+            }
+            
+            int getX() { return x; }
+            int getY() { return y; }
+            int getVX() { return vx; }
+            int getVY() { return vy; }
+            int beenCaught() { return caught; }
+        };
+
+int main(){
+    int myTeamId; // if 0 you need to score on the right of the map, if 1 you need to score on the left
+    cin >> myTeamId; cin.ignore();
+    int post = 1;
+
+    // game loop
+    while (1) {
+        int myScore;
+        int myMagic;
+        cin >> myScore >> myMagic; cin.ignore();
+        int opponentScore;
+        int opponentMagic;
+        cin >> opponentScore >> opponentMagic; cin.ignore();
+        int entities; // number of entities still in game
+        cin >> entities; cin.ignore();
+        
+        // Keeps track of Friendly Wizards
+        
+        
+        // Creates space to store info
+        vector<Wizard> friendlies;
+        vector<Enemy> tangos;
+        vector<Snaffle> snaffles;
+        
+        
+        for (int i = 0; i < entities; i++) {
+            int entityId; // entity identifier
+            string entityType; // "WIZARD", "OPPONENT_WIZARD" or "SNAFFLE" (or "BLUDGER" after first league)
+            int x; // position
+            int y; // position
+            int vx; // velocity
+            int vy; // velocity
+            int state; // 1 if the wizard is holding a Snaffle, 0 otherwise
+            cin >> entityId >> entityType >> x >> y >> vx >> vy >> state; cin.ignore();
+            
+            if(entityType=="WIZARD"){
+              friendlies.push_back(Wizard(x,y,vx,vy,state));
+            }
+            
+            if(entityType=="SNAFFLE"){
+             snaffles.push_back(Snaffle(x,y,vx,vy,state));
+            }
+            
+            if(entityType=="OPPONENT_WIZARD"){
+             tangos.push_back(Enemy(x,y,vx,vy,state));   
+            }
+        }
+        
+        
+        // Start of AI action section
+        for (int i = 0; i < 2; i++) {
+            // The 2 Below doubles are used to store the closest snaffle ID and its distance
+            int closest[2], l,w;
+            double closestdist[2] = {100000.0,100000.0}, hyp;
+            vector<Snaffle> defend,danger;
+            
+            
+            // Start of Goalie AI
+            if(i==0){
+                if(friendlies[0].hasSnaffle()==1){
+                    // Checks which side they are on
+                    if(myTeamId==0){
+                        // Throws to closest corner
+                        if(friendlies[0].getY()<=3750)
+                            cout << "THROW " << friendlies[i].getX()+2500 << " 0 500" << endl;
+                        else
+                            cout << "THROW " << friendlies[i].getX()+2500 << " 7500 500" << endl;
+                    }else{
+                        if(friendlies[0].getY()<=3750)
+                            cout << "THROW " << friendlies[i].getX()-2500 << " 0 500" << endl;
+                        else
+                            cout << "THROW " << friendlies[i].getX()-2500 << " 7500 500" << endl;  
+                    }
+                }else{
+                // Loops through snaffles to check if there are any within a certain area around the goal
+                    for(int a = 0; a<snaffles.size();a++){
+                     l = snaffles[a].getX()-friendlies[i].getX();
+                     w = snaffles[a].getY()-friendlies[i].getY();
+                     w=w*w;
+                     l=l*l;
+                     hyp=sqrt(w+l);
+                        // checks if any Snaffles are within possible goal zone, adds them to array of snaffles to stop
+                        if(myTeamId==0){
+                            if( (snaffles[a].getX()<3500&&(snaffles[a].getY()<7000&&snaffles[a].getY()>500)) || hyp<750){
+                                defend.push_back(snaffles[a]);
+                            }
+                            
+                            if(snaffles[a].getX()<2000&&(snaffles[a].getY()<5500&&snaffles[a].getY()>2000)){
+                                danger.push_back(snaffles[a]);
+                            }
+                        
+                        }else{
+                            if( (snaffles[a].getX()>12500&&(snaffles[a].getY()<7000&&snaffles[a].getY()>500)) || hyp<750){
+                                defend.push_back(snaffles[a]);
+                            }
+                            
+                            if(snaffles[a].getX()>14000&&(snaffles[a].getY()<5500&&snaffles[a].getY()>2000)){
+                                danger.push_back(snaffles[a]);
+                            }
+                        }
+                    }
+                        // end of snaffle position check
+                        
+                        
+                        // Snaffle is very close to goal, becomes top priority
+                    if(danger.size() != 0){
+                        for(int a = 0; a<danger.size();a++){
+                            l = danger[a].getX()-friendlies[i].getX();
+                            w = danger[a].getY()-friendlies[i].getY();
+                            w=w*w;
+                            l=l*l;
+                            hyp=sqrt(w+l);
+                            if(hyp<closestdist[i]){
+                            closestdist[i]=hyp;
+                            closest[i]=a;
+                            }
+                        }
+                    cerr << "Attempted to intercept danger level snaffle" << endl;
+                    cout << "MOVE " << danger[closest[i]].getX()+danger[closest[i]].getVX() << " " << danger[closest[i]].getY()+danger[closest[i]].getVY() << " 150" << endl;
+                    }else{
+                        if(defend.size() != 0){
+                            // Snaffle is within range, goalie will intercept
+                            for(int a = 0; a<defend.size();a++){
+                                l= defend[a].getX()-friendlies[i].getX();
+                                w = defend[a].getY()-friendlies[i].getY();
+                                w=w*w;
+                                l=l*l;
+                                hyp=sqrt(w+l);
+                                if(hyp<closestdist[i]){
+                                closestdist[i]=hyp;
+                                closest[i]=a;
+                                }
+                            }
+                        cout << "MOVE " << defend[closest[i]].getX()+defend[closest[i]].getVX() << " " << defend[closest[i]].getY()+defend[closest[i]].getVY() << " 150" << endl; 
+                        }else{
+                        // No snaffles within range, goalie will wait
+                            myTeamId==0?cout << "MOVE 2000 3750 150" << endl:cout << "MOVE 14000 3750 150" << endl;
+                        }
+                    }
+                    
+                } 
+                // End of Goalie AI
+            }else{
+                
+                // Start of Offense AI
+             if(friendlies[i].hasSnaffle()==1){
+                 if(myTeamId==0){
+                            cout << "THROW 16000 3750 500" << endl;
+                 }else{
+                            cout << "THROW 0 3750 500" << endl;
+                 }
+                    
+             }else{
+                 for(int a = 0; a<snaffles.size();a++){
+                     l = snaffles[a].getX()-friendlies[i].getX();
+                     w = snaffles[a].getY()-friendlies[i].getY();
+                     w=w*w;
+                     l=l*l;
+                     hyp=sqrt(w+l);
+                     if(hyp<closestdist[i]){
+                      closestdist[i]=hyp;
+                      closest[i]=a;
+                        }    
+                    }
+            cout << "MOVE " << snaffles[closest[i]].getX()+snaffles[closest[i]].getVX() << " " << snaffles[closest[i]].getY()+snaffles[closest[i]].getVY() << " 150" << endl;
+            // End off Offense AI  
+                }
+                 
+            }
+        }
+            // Write an action using cout. DON'T FORGET THE "<< endl"
+            // To debug: cerr << "Debug messages..." << endl;
+
+
+            // Edit this line to indicate the action for each wizard (0 ≤ thrust ≤ 150, 0 ≤ power ≤ 500)
+            // i.e.: "MOVE x y thrust" or "THROW x y power"
+
+    }
+}

@@ -1,0 +1,169 @@
+#include <iostream>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <math.h>
+
+using namespace std;
+
+/**
+ * Grab Snaffles and try to throw them through the opponent's goal!
+ * Move towards a Snaffle and use your team id to determine where you need to throw it.
+ **/
+ 
+ class Entity {
+         int x,y,vx,vy,snaffle,id;
+         
+         public:
+            Entity(int x, int y, int vx, int vy, int snaffle,int id) {
+                this->x = x;
+                this->y = y;
+                this->vx = vx;
+                this->vy = vy;
+                this->snaffle = snaffle;
+                this->id = id;
+            }
+            
+            int getX() { return x; }
+            int getY() { return y; }
+            int getVX() { return vx; }
+            int getVY() { return vy; }
+            int hasSnaffle() { return snaffle; }
+            int getID() { return id; }
+            
+            double getDist(Entity obj){
+                 int l = obj.getX()-this->x;
+                 int w = obj.getY()-this->y;
+                 w=w*w;
+                 l=l*l;
+                 return sqrt(w+l);
+            }
+        };
+        
+int main(){
+    int myTeamId; // if 0 you need to score on the right of the map, if 1 you need to score on the left
+    cin >> myTeamId; cin.ignore();
+    int post = 1;
+
+    // game loop
+    while (1) {
+        int myScore;
+        int myMagic;
+        cin >> myScore >> myMagic; cin.ignore();
+        int opponentScore;
+        int opponentMagic;
+        cin >> opponentScore >> opponentMagic; cin.ignore();
+        int entities; // number of entities still in game
+        cin >> entities; cin.ignore();
+        
+        // Creates vectors to store entities
+        vector<Entity> friendlies,enemies,snaffles,bludgers,foenear;
+        
+        for (int i = 0; i < entities; i++) {
+            int entityId; // entity identifier
+            string entityType; // "WIZARD", "OPPONENT_WIZARD" or "SNAFFLE" (or "BLUDGER" after first league)
+            int x; // position
+            int y; // position
+            int vx; // velocity
+            int vy; // velocity
+            int state; // 1 if the wizard is holding a Snaffle, 0 otherwise
+            cin >> entityId >> entityType >> x >> y >> vx >> vy >> state; cin.ignore();
+            
+            if(entityType=="WIZARD"){
+              friendlies.push_back(Entity(x,y,vx,vy,state,entityId));
+            }
+            
+            if(entityType=="SNAFFLE"){
+             snaffles.push_back(Entity(x,y,vx,vy,state,entityId));
+            }
+            
+            if(entityType=="OPPONENT_WIZARD"){
+             enemies.push_back(Entity(x,y,vx,vy,state,entityId));   
+            }
+            
+            if(entityType=="BLUDGER"){
+             bludgers.push_back(Entity(x,y,vx,vy,state,entityId));   
+            }
+        }
+        
+        double closestdist[2] = {100000.0,100000.0}, hyp;
+        string output[2];
+        // Start of AI action section
+        for (int i = 0; i < 2; i++) {
+            
+            // Declaring variables to be used to store info later
+            int snflx,snfly,snflvx,snflvy,snflId; // Variables to Store snaffle info
+            int goalx,team, defendx; // Variables to store goals x co-ords and team
+            int wizx,wizy,hold_snaf; // Variables to store wizard info
+            
+            // Puts current wizards info into the necessary variables
+            wizx = friendlies[i].getX();
+            wizy = friendlies[i].getY();
+            hold_snaf = friendlies[i].hasSnaffle();
+            
+            // Stores team value in a format that makes x co-ord comparisons easy
+            myTeamId==0?team=1:team=-1;
+            
+            // Stores the x val of the goal
+            myTeamId==0?goalx=16000:goalx=0;
+            
+            // Stores the x val of friendly goal (try to defend)
+            myTeamId==0?defendx=0:defendx=16000;
+            
+            // Quick search near friendly goal area for snaffles that might be scored
+            
+            
+            // Start of Offense AI
+             if(friendlies[i].hasSnaffle()==1){
+                      output[i]="THROW " + to_string(goalx) + " 3750 500";   
+             }else{
+                 for(int a = 0; a<snaffles.size();a++){
+                     hyp=friendlies[i].getDist(snaffles[a]);
+                     if(hyp<closestdist[i]){
+                      closestdist[i]=hyp;
+                      snflx=snaffles[a].getX();
+                      snfly=snaffles[a].getY();
+                      snflvx=snaffles[a].getVX();
+                      snflvy=snaffles[a].getVY();
+                      snflId=snaffles[a].getID();
+                      
+                    // Prevents friendlies from chasing the same snaffle unless there
+                    // Is only 1 snaffle
+                    // Doesn't always work strangely.
+                      if(snaffles.size()>1){
+                          snaffles.erase(snaffles.begin()+a);
+                            }
+                        }
+                    }
+                    
+                // Begginning of "take action" section.
+                    if(myMagic>25&&((snflx-defendx)*team<3000)&&snflvx!=0){
+                        i==2;
+                        output[0]="PETRIFICUS " + to_string(snflId);
+                        output[1]="ACCIO " + to_string(snflId);
+                    }else{
+                        if(myMagic>15&&(goalx-snflx*team>goalx-wizx*team)&&closestdist[i]>1500){
+                            if(closestdist[i]>6000&&snflvx!=0)
+                                output[i]="PETRIFICUS " + to_string(snflId);
+                            else
+                                output[i]="ACCIO " + to_string(snflId);
+                        }else{
+                            if(myMagic>20&&((goalx-snflx*team<goalx-wizx*team&&goalx-8000*team>goalx-snflx*team)&&closestdist[i]>1000)){
+                                output[i]="FLIPENDO " + to_string(snflId);
+                            }else{
+                                    output[i]="MOVE " + to_string(snflx+snflvx) + " " + to_string(snfly+snflvy) + " 150";
+                                }
+                            }
+                        }
+            // End off Offense AI  
+                
+             }
+                 
+            }
+            snaffles.clear();
+            enemies.clear();
+            friendlies.clear();
+            cout << output[0] << endl;
+            cout << output[1] << endl;
+        }
+    }
